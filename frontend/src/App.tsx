@@ -157,7 +157,7 @@ function VoiceBot() {
   const handleClick = async () => {
     await pipecatClient?.connect({
       webrtcRequestParams: {
-        endpoint: `${import.meta.env.VITE_PIPECAT_API_URL || "http://localhost:7860"}/api/offer`,
+        endpoint: `${import.meta.env.VITE_PIPECAT_API_URL}/api/offer`,
       },
     });
   };
