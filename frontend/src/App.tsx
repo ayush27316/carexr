@@ -154,16 +154,27 @@ function VoiceBot() {
   const pipecatClient = usePipecatClient();
   const { messages } = usePipecatConversation();
 
+  const backendUrl = import.meta.env.VITE_PIPECAT_API_URL;
+  const endpoint = `${backendUrl}/api/offer`;
+
   const handleClick = async () => {
-    await pipecatClient?.connect({
-      webrtcRequestParams: {
-        endpoint: `${import.meta.env.VITE_PIPECAT_API_URL}/api/offer`,
-      },
-    });
+    try {
+      await pipecatClient?.connect({
+        webrtcRequestParams: {
+          endpoint,
+        },
+      });
+    } catch (err) {
+      console.error("Connection failed:", err);
+    }
   };
 
   return (
     <div>
+      <div style={{ padding: "10px", marginBottom: "10px", background: backendUrl ? "#e6ffe6" : "#ffe6e6", borderRadius: "6px", fontFamily: "monospace", fontSize: "13px" }}>
+        <div><strong>Backend URL:</strong> {backendUrl || "NOT SET (undefined)"}</div>
+        <div><strong>Endpoint:</strong> {endpoint}</div>
+      </div>
       <button onClick={handleClick}>Start Conversation</button>
       <ul>
         {messages.map((msg, i) => (
