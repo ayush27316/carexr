@@ -127,11 +127,11 @@ import {
   usePipecatConversation,
   type BotOutputText,
 } from "@pipecat-ai/client-react";
-import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
+import { WebSocketTransport } from "@pipecat-ai/websocket-transport";
 
 // Create the client instance
 const client = new PipecatClient({
-  transport: new SmallWebRTCTransport(),
+  transport: new WebSocketTransport(),
   enableMic: true,
 });
 
@@ -155,14 +155,12 @@ function VoiceBot() {
   const { messages } = usePipecatConversation();
 
   const backendUrl = import.meta.env.VITE_PIPECAT_API_URL;
-  const endpoint = `${backendUrl}/api/offer`;
+  const wsUrl = backendUrl?.replace(/^http/, "ws") + "/ws";
 
   const handleClick = async () => {
     try {
       await pipecatClient?.connect({
-        webrtcRequestParams: {
-          endpoint,
-        },
+        wsUrl,
       });
     } catch (err) {
       console.error("Connection failed:", err);
@@ -173,7 +171,7 @@ function VoiceBot() {
     <div>
       <div style={{ padding: "10px", marginBottom: "10px", background: backendUrl ? "#e6ffe6" : "#ffe6e6", borderRadius: "6px", fontFamily: "monospace", fontSize: "13px" }}>
         <div><strong>Backend URL:</strong> {backendUrl || "NOT SET (undefined)"}</div>
-        <div><strong>Endpoint:</strong> {endpoint}</div>
+        <div><strong>WebSocket:</strong> {wsUrl}</div>
       </div>
       <button onClick={handleClick}>Start Conversation</button>
       <ul>

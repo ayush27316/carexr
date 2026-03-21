@@ -4,19 +4,19 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
-"""Pipecat Quickstart Example.
+"""Pipecat Voice AI Bot with WebSocket transport.
 
-The example runs a simple voice AI bot that you can connect to using your
-browser and speak with it. You can also deploy this bot to Pipecat Cloud.
+Runs a FastAPI server with a /ws WebSocket endpoint that clients
+connect to for real-time voice conversations.
 
 Required AI services:
 - Deepgram (Speech-to-Text)
-- OpenAI (LLM)
+- Grok (LLM)
 - Cartesia (Text-to-Speech)
 
 Run the bot using::
 
-    uv run bot.py
+    uvicorn server:app --host 0.0.0.0 --port 8765
 """
 
 import os
@@ -24,17 +24,8 @@ import os
 from dotenv import load_dotenv
 from loguru import logger
 
-print("🚀 Starting Pipecat bot...")
-print("⏳ Loading models and imports (20 seconds, first run only)\n")
-
-logger.info("Loading Silero VAD model...")
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-
-logger.info("✅ Silero VAD model loaded")
-
 from pipecat.frames.frames import LLMRunFrame
-
-logger.info("Loading pipeline components...")
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -44,24 +35,21 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregatorParams,
 )
 from pipecat.runner.types import RunnerArguments
-from pipecat.runner.utils import create_transport
+from pipecat.serializers.protobuf import ProtobufFrameSerializer
 from pipecat.services.cartesia.tts import CartesiaTTSService
 from pipecat.services.deepgram.stt import DeepgramSTTService
-from pipecat.services.openai.llm import OpenAILLMService
-from pipecat.transports.base_transport import BaseTransport, TransportParams
-from pipecat.transports.daily.transport import DailyParams
-
 from pipecat.services.grok import GrokLLMService
-
-
-logger.info("✅ All components loaded successfully!")
+from pipecat.transports.base_transport import BaseTransport
+from pipecat.transports.websocket.fastapi import (
+    FastAPIWebsocketParams,
+    FastAPIWebsocketTransport,
+)
 
 load_dotenv(override=True)
 
 
-
-async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
-    logger.info(f"Starting bot")
+async def run_bot(transport: BaseTransport, handle_sigint: bool):
+    logger.info("Starting bot pipeline")
 
     stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
 
@@ -72,12 +60,6 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         ),
     )
 
-    # llm = OpenAILLMService(
-    #     api_key=os.getenv("OPENAI_API_KEY"),
-    #     settings=OpenAILLMService.Settings(
-    #         system_instruction="You are a friendly AI assistant. Respond naturally and keep your answers conversational.",
-    #     ),
-    # )
     llm = GrokLLMService(
         api_key=os.getenv("XAI_API_KEY"),
         settings=GrokLLMService.Settings(
@@ -85,7 +67,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
             temperature=0.7,
             top_p=0.9,
             max_completion_tokens=1024,
-            system_instruction="You are a friendly AI assistant. Respond naturally and keep your answers conversational."
+            system_instruction="You are a friendly AI assistant. Respond naturally and keep your answers conversational.",
         ),
     )
 
@@ -97,13 +79,13 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
 
     pipeline = Pipeline(
         [
-            transport.input(),  # Transport user input
+            transport.input(),
             stt,
-            user_aggregator,  # User responses
-            llm,  # LLM
-            tts,  # TTS
-            transport.output(),  # Transport bot output
-            assistant_aggregator,  # Assistant spoken responses
+            user_aggregator,
+            llm,
+            tts,
+            transport.output(),
+            assistant_aggregator,
         ]
     )
 
@@ -117,8 +99,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
 
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
-        logger.info(f"Client connected")
-        # Kick off the conversation.
+        logger.info("Client connected")
         context.add_message(
             {"role": "user", "content": "Say hello and briefly introduce yourself."}
         )
@@ -126,34 +107,23 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
-        logger.info(f"Client disconnected")
+        logger.info("Client disconnected")
         await task.cancel()
 
-    runner = PipelineRunner(handle_sigint=runner_args.handle_sigint)
-
+    runner = PipelineRunner(handle_sigint=handle_sigint)
     await runner.run(task)
 
 
 async def bot(runner_args: RunnerArguments):
-    """Main bot entry point for the bot starter."""
-
-    transport_params = {
-        "daily": lambda: DailyParams(
+    """Entry point called from the FastAPI /ws endpoint."""
+    transport = FastAPIWebsocketTransport(
+        websocket=runner_args.websocket,
+        params=FastAPIWebsocketParams(
             audio_in_enabled=True,
             audio_out_enabled=True,
+            add_wav_header=False,
+            serializer=ProtobufFrameSerializer(),
         ),
-        "webrtc": lambda: TransportParams(
-            audio_in_enabled=True,
-            audio_out_enabled=True,
-        ),
-    }
+    )
 
-    transport = await create_transport(runner_args, transport_params)
-
-    await run_bot(transport, runner_args)
-
-
-if __name__ == "__main__":
-    from pipecat.runner.run import main
-
-    main()
+    await run_bot(transport, runner_args.handle_sigint)

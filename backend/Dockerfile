@@ -19,5 +19,6 @@ RUN uv sync --locked --no-install-project --no-dev
 
 # Copy the application code
 COPY ./bot.py bot.py
+COPY ./server.py server.py
 
-CMD ["sh", "-c", "uv run bot.py --host 0.0.0.0 --port ${PORT:-7860}"]
+CMD ["sh", "-c", "uv run uvicorn server:app --host 0.0.0.0 --port ${PORT:-8765}"]
