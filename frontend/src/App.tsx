@@ -32,7 +32,7 @@ function isBotText(t: unknown): t is BotOutputText {
 }
 
 function AvatarUI() {
-  const pipecatClient = usePipecatClient();
+  const pipecatClient = usePipecatClient() ?? null;
   const { messages = [] } = usePipecatConversation() ?? {};
   const vrmRef = useRef<VRMSceneHandle>(null);
 
