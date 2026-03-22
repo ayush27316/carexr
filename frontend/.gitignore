@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Large binary assets — use LFS or download separately
+public/*.vrm
