@@ -9,6 +9,7 @@ dependencies = [
     "uvicorn[standard]",
     "python-dotenv",
     "httpx",
+    "trimesh",
 ]
 
 [dependency-groups]

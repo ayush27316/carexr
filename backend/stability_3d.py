@@ -12,6 +12,7 @@ import os
 import uuid
 
 import httpx
+import trimesh
 from loguru import logger
 
 IMAGE_GEN_URL = "https://api.stability.ai/v2beta/stable-image/generate/core"
@@ -43,11 +44,17 @@ async def generate_3d_object(prompt: str) -> str:
         image_bytes = await _text_to_image(client, api_key, prompt)
         glb_bytes = await _image_to_3d(client, api_key, image_bytes)
 
+    raw_path = os.path.join(MODELS_DIR, f"{model_id}_raw.glb")
     glb_path = os.path.join(MODELS_DIR, f"{model_id}.glb")
-    with open(glb_path, "wb") as f:
+
+    with open(raw_path, "wb") as f:
         f.write(glb_bytes)
 
-    logger.info(f"SF3D: Generated model {model_id} ({len(glb_bytes)} bytes)")
+    scene = trimesh.load(raw_path)
+    scene.export(glb_path, file_type="glb")
+    os.remove(raw_path)
+
+    logger.info(f"SF3D: Generated model {model_id} ({os.path.getsize(glb_path)} bytes)")
     return model_id
 
 
