@@ -15,6 +15,9 @@ from loguru import logger
 
 load_dotenv(override=True)
 
+latest_model: dict | None = None
+is_generating: bool = False
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,6 +40,14 @@ app.add_middleware(
 @app.get("/health")
 async def health():
     return {"ok": True}
+
+
+@app.get("/latest-model")
+async def get_latest_model():
+    return {
+        "generating": is_generating,
+        **(latest_model or {"status": "none"}),
+    }
 
 
 @app.websocket("/ws")

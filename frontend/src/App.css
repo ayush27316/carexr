@@ -111,3 +111,105 @@ html, body, #root {
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Ambient glow while the avatar is "creating" something */
+.creating-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 60%,
+      rgba(120, 160, 255, 0.25) 0%,
+      rgba(160, 100, 255, 0.15) 30%,
+      rgba(100, 200, 255, 0.08) 55%,
+      transparent 75%);
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.creating-status {
+  position: fixed;
+  bottom: 140px;
+  left: 0;
+  right: 0;
+  z-index: 110;
+  text-align: center;
+  pointer-events: none;
+  animation: status-fade 2s ease-in-out infinite;
+}
+
+.creating-status span {
+  display: inline-block;
+  padding: 8px 20px;
+  background: rgba(120, 160, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(120, 160, 255, 0.2);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(180, 210, 255, 0.9);
+  letter-spacing: 0.04em;
+}
+
+@keyframes status-fade {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.model-ready {
+  position: fixed;
+  top: 50px;
+  left: 0;
+  right: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  animation: slide-down 0.4s ease-out;
+}
+
+.model-ready-btn {
+  display: inline-block;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #a6e3a1, #74c7ec);
+  color: #1e1e2e;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 14px;
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(166, 227, 161, 0.3);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.model-ready-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 6px 28px rgba(166, 227, 161, 0.45);
+}
+
+.model-ready-dismiss {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.model-ready-dismiss:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
