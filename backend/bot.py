@@ -53,7 +53,7 @@ from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketTransport,
 )
 
-from meshy import generate_3d_object
+from stability_3d import generate_3d_object
 
 load_dotenv(override=True)
 
@@ -186,11 +186,16 @@ async def run_bot(transport: BaseTransport, handle_sigint: bool):
         server.is_generating = True
         async with generation_lock:
             try:
-                glb_url = await generate_3d_object(prompt)
-                server.latest_model = {"status": "ready", "glb_url": glb_url, "prompt": prompt}
+                model_id = await generate_3d_object(prompt)
+                port = os.getenv("PORT", "8765")
+                base_url = os.getenv("BASE_URL", f"http://localhost:{port}")
+                model_url = f"{base_url}/models/{model_id}.glb"
+                server.latest_model = {"status": "ready", "glb_url": model_url, "prompt": prompt}
                 await params.result_callback({
                     "status": "success",
-                    "message": "The 3D model is ready! It will appear on screen for the user.",
+                    "model_id": model_id,
+                    "model_url": model_url,
+                    "message": "The 3D model is ready! It will appear for the user.",
                 })
             except Exception as e:
                 logger.error(f"3D generation failed: {e}")
@@ -201,7 +206,7 @@ async def run_bot(transport: BaseTransport, handle_sigint: bool):
     llm.register_function(
         "generate_3d_object",
         handle_generate_3d,
-        timeout_secs=360,
+        timeout_secs=220,
         cancel_on_interruption=False,
     )
 

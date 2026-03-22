@@ -6,11 +6,13 @@ Run:
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from loguru import logger
 
 load_dotenv(override=True)
@@ -48,6 +50,15 @@ async def get_latest_model():
         "generating": is_generating,
         **(latest_model or {"status": "none"}),
     }
+
+
+@app.get("/models/{model_id}.glb")
+async def get_model(model_id: str):
+    """Serve a generated GLB model file."""
+    glb_path = Path(__file__).parent / "generated_models" / f"{model_id}.glb"
+    if not glb_path.exists():
+        return {"error": "Model not found"}, 404
+    return FileResponse(glb_path, media_type="model/gltf-binary", filename=f"{model_id}.glb")
 
 
 @app.websocket("/ws")
