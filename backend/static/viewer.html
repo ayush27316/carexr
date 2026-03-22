@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareXR — 3D Model Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; color: #fff; font-family: system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+    #header { padding: 16px 24px; background: #111118; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 16px; }
+    #header h1 { font-size: 18px; font-weight: 600; }
+    #status { font-size: 13px; color: #888; }
+    #status.generating { color: #f0c040; }
+    #status.ready { color: #40f080; }
+    #prompt { font-size: 13px; color: #aaa; margin-top: 4px; font-style: italic; }
+    #viewer { flex: 1; position: relative; }
+    #empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #444; font-size: 16px; }
+    model-viewer { width: 100%; height: 100%; }
+  </style>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+</head>
+<body>
+  <div id="header">
+    <div>
+      <h1>CareXR — 3D Model Viewer</h1>
+      <div id="status">Polling for models...</div>
+      <div id="prompt"></div>
+    </div>
+  </div>
+  <div id="viewer">
+    <div id="empty">Waiting for a 3D model to be generated via voice...</div>
+    <model-viewer
+      id="model"
+      style="display:none"
+      camera-controls
+      auto-rotate
+      shadow-intensity="1"
+      environment-image="neutral"
+      exposure="1.0"
+      camera-orbit="45deg 55deg 2.5m"
+    ></model-viewer>
+  </div>
+
+  <script>
+    const BACKEND = window.location.origin;
+    const POLL_MS = 2000;
+    let lastUrl = '';
+
+    const statusEl = document.getElementById('status');
+    const promptEl = document.getElementById('prompt');
+    const emptyEl = document.getElementById('empty');
+    const modelEl = document.getElementById('model');
+
+    async function poll() {
+      try {
+        const res = await fetch(`${BACKEND}/latest-model`);
+        const data = await res.json();
+
+        if (data.generating) {
+          statusEl.textContent = 'Generating 3D model...';
+          statusEl.className = 'generating';
+        } else if (data.status === 'ready' && data.glb_url && data.glb_url !== lastUrl) {
+          lastUrl = data.glb_url;
+          statusEl.textContent = 'Model ready!';
+          statusEl.className = 'ready';
+          promptEl.textContent = data.prompt || '';
+
+          emptyEl.style.display = 'none';
+          modelEl.style.display = 'block';
+          modelEl.setAttribute('src', data.glb_url);
+        } else if (data.status === 'ready') {
+          statusEl.textContent = 'Model loaded';
+          statusEl.className = 'ready';
+        } else {
+          statusEl.textContent = 'Polling for models...';
+          statusEl.className = '';
+        }
+      } catch (e) {
+        statusEl.textContent = 'Connection error';
+        statusEl.className = '';
+      }
+    }
+
+    setInterval(poll, POLL_MS);
+    poll();
+  </script>
+</body>
+</html>

@@ -23,5 +23,6 @@ COPY ./server.py server.py
 COPY ./meshy.py meshy.py
 COPY ./lens_serializer.py lens_serializer.py
 COPY ./stability_3d.py stability_3d.py
+COPY ./static static
 
 CMD ["sh", "-c", "uv run uvicorn server:app --host 0.0.0.0 --port ${PORT:-8765}"]

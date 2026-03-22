@@ -12,7 +12,8 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 load_dotenv(override=True)
@@ -37,6 +38,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/viewer")
+async def viewer():
+    """3D model viewer page — auto-polls for new models."""
+    viewer_path = Path(__file__).parent / "static" / "viewer.html"
+    return HTMLResponse(viewer_path.read_text())
 
 
 @app.get("/health")
