@@ -21,5 +21,6 @@ RUN uv sync --locked --no-install-project --no-dev
 COPY ./bot.py bot.py
 COPY ./server.py server.py
 COPY ./meshy.py meshy.py
+COPY ./lens_serializer.py lens_serializer.py
 
 CMD ["sh", "-c", "uv run uvicorn server:app --host 0.0.0.0 --port ${PORT:-8765}"]
