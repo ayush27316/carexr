@@ -34,14 +34,6 @@ const EXPRESSION_MAP: Record<string, string> = {
   surprised: "surprised",
 };
 
-const EXPRESSION_TO_EMOTION: Record<string, Emotion> = {
-  joy: "happy",
-  happy: "happy",
-  angry: "angry",
-  fun: "funny",
-  funny: "funny",
-};
-
 export interface VRMSceneHandle {
   setMouthValue: (value: number) => void;
   setExpression: (name: string, duration?: number) => void;

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { VRM } from "@pixiv/three-vrm";
+import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import { mixamoVRMRigMap } from "./vrmRigMap";
 
 export function remapMixamoAnimationToVrm(
@@ -30,9 +30,10 @@ export function remapMixamoAnimationToVrm(
   src.tracks.forEach((track) => {
     const trackSplitted = track.name.split(".");
     const mixamoRigName = trackSplitted[0];
-    const vrmBoneName = mixamoVRMRigMap[mixamoRigName];
-    const vrmNodeName =
-      vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
+    const vrmBoneName = mixamoVRMRigMap[mixamoRigName] as VRMHumanBoneName | undefined;
+    const vrmNodeName = vrmBoneName
+      ? vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name
+      : undefined;
     const mixamoRigNode = asset.getObjectByName(mixamoRigName);
 
     if (vrmNodeName != null && mixamoRigNode != null) {
