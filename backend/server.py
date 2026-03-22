@@ -69,6 +69,26 @@ async def websocket_endpoint(websocket: WebSocket):
             pass
 
 
+@app.websocket("/ws-lens")
+async def websocket_lens_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for Lens Studio clients using JSON serialization."""
+    await websocket.accept()
+    logger.info("Lens Studio client connected to /ws-lens")
+
+    try:
+        from bot import bot_lens
+        from pipecat.runner.types import WebSocketRunnerArguments
+
+        runner_args = WebSocketRunnerArguments(websocket=websocket, body={})
+        await bot_lens(runner_args)
+    except Exception as e:
+        logger.exception(f"Error running Lens Studio bot: {e}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8765"))
     uvicorn.run(app, host="0.0.0.0", port=port)

@@ -57,7 +57,7 @@ from meshy import generate_3d_object
 
 load_dotenv(override=True)
 
-_TAG_RE = re.compile(r"\[(?:face|animation):\w+\]")
+_TAG_RE = re.compile(r"\[(?:face|animation):(\w+)\]")
 
 
 class ExpressionFilter(FrameProcessor):
@@ -66,31 +66,38 @@ class ExpressionFilter(FrameProcessor):
     Tags are left in the conversation context (so the LLM sees them) but
     removed before TTS so they aren't spoken aloud.  Handles tags split
     across chunked frames by buffering partial matches.
+
+    When a tag is found, an ExpressionFrame is pushed downstream so the
+    transport serializer can forward it to the client.
     """
 
     def __init__(self):
         super().__init__()
         self._buf = ""
 
+    async def _flush(self):
+        """Extract expression tags, emit ExpressionFrames, then push cleaned text."""
+        from lens_serializer import ExpressionFrame
+
+        for match in _TAG_RE.finditer(self._buf):
+            await self.push_frame(ExpressionFrame(expression_name=match.group(1)))
+
+        cleaned = _TAG_RE.sub("", self._buf)
+        self._buf = ""
+        if cleaned:
+            await self.push_frame(TextFrame(text=cleaned))
+
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
         if isinstance(frame, TextFrame):
             self._buf += frame.text
-            # Flush only when no partial tag is open at the end
             if "[" in self._buf and "]" not in self._buf.split("[")[-1]:
-                return  # wait for the rest of the tag
-            cleaned = _TAG_RE.sub("", self._buf)
-            self._buf = ""
-            if cleaned:
-                await self.push_frame(TextFrame(text=cleaned))
+                return
+            await self._flush()
         else:
-            # Flush anything buffered before passing non-text frames
             if self._buf:
-                cleaned = _TAG_RE.sub("", self._buf)
-                self._buf = ""
-                if cleaned:
-                    await self.push_frame(TextFrame(text=cleaned))
+                await self._flush()
             await self.push_frame(frame, direction)
 
 
@@ -243,7 +250,7 @@ async def run_bot(transport: BaseTransport, handle_sigint: bool):
 
 
 async def bot(runner_args: RunnerArguments):
-    """Entry point called from the FastAPI /ws endpoint."""
+    """Entry point called from the FastAPI /ws endpoint (React client, Protobuf)."""
     transport = FastAPIWebsocketTransport(
         websocket=runner_args.websocket,
         params=FastAPIWebsocketParams(
@@ -251,6 +258,23 @@ async def bot(runner_args: RunnerArguments):
             audio_out_enabled=True,
             add_wav_header=False,
             serializer=ProtobufFrameSerializer(),
+        ),
+    )
+
+    await run_bot(transport, runner_args.handle_sigint)
+
+
+async def bot_lens(runner_args: RunnerArguments):
+    """Entry point called from the FastAPI /ws-lens endpoint (Lens Studio, JSON)."""
+    from lens_serializer import LensStudioSerializer
+
+    transport = FastAPIWebsocketTransport(
+        websocket=runner_args.websocket,
+        params=FastAPIWebsocketParams(
+            audio_in_enabled=True,
+            audio_out_enabled=True,
+            add_wav_header=False,
+            serializer=LensStudioSerializer(),
         ),
     )
 
