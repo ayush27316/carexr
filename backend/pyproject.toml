@@ -9,7 +9,8 @@ dependencies = [
     "uvicorn[standard]",
     "python-dotenv",
     "httpx",
-    "trimesh",
+    "pygltflib",
+    "numpy",
 ]
 
 [dependency-groups]

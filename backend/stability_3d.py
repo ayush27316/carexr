@@ -9,10 +9,10 @@ Total cost: 5 credits per generation (3 image + 2 3D)
 """
 
 import os
+import struct
 import uuid
 
 import httpx
-import trimesh
 from loguru import logger
 
 IMAGE_GEN_URL = "https://api.stability.ai/v2beta/stable-image/generate/core"
@@ -50,8 +50,7 @@ async def generate_3d_object(prompt: str) -> str:
     with open(raw_path, "wb") as f:
         f.write(glb_bytes)
 
-    scene = trimesh.load(raw_path)
-    scene.export(glb_path, file_type="glb")
+    _fix_glb_indices(raw_path, glb_path)
     os.remove(raw_path)
 
     logger.info(f"SF3D: Generated model {model_id} ({os.path.getsize(glb_path)} bytes)")
@@ -95,8 +94,59 @@ async def _image_to_3d(
         SF3D_URL,
         headers={"Authorization": f"Bearer {api_key}"},
         files={"image": ("object.png", image_bytes, "image/png")},
-        data={"texture_resolution": "1024", "foreground_ratio": "0.85"},
+        data={
+            "texture_resolution": "1024",
+            "foreground_ratio": "0.85",
+            "remesh": "triangle",
+            "vertex_count": "8000",
+        },
     )
     response.raise_for_status()
     logger.info(f"SF3D: 3D model generated ({len(response.content)} bytes)")
     return response.content
+
+
+def _fix_glb_indices(input_path: str, output_path: str):
+    """Re-export GLB via pygltflib to ensure Lens Studio compatibility.
+
+    Converts 32-bit indices (UNSIGNED_INT) to 16-bit (UNSIGNED_SHORT) if the
+    vertex count allows it, since Spectacles doesn't support 32-bit indices.
+    """
+    from pygltflib import GLTF2
+    import numpy as np
+
+    glb = GLTF2.load(input_path)
+
+    for mesh in glb.meshes:
+        for prim in mesh.primitives:
+            if prim.indices is not None:
+                accessor = glb.accessors[prim.indices]
+                # 5125 = UNSIGNED_INT (32-bit), convert to 5123 = UNSIGNED_SHORT (16-bit)
+                if accessor.componentType == 5125:
+                    bv = glb.bufferViews[accessor.bufferView]
+                    blob = glb.binary_blob()
+                    start = bv.byteOffset
+                    end = start + bv.byteLength
+
+                    # Read 32-bit indices
+                    indices_32 = np.frombuffer(blob[start:end], dtype=np.uint32)
+                    max_index = int(indices_32.max())
+
+                    if max_index <= 65535:
+                        indices_16 = indices_32.astype(np.uint16)
+                        new_bytes = indices_16.tobytes()
+
+                        # Replace in binary blob
+                        blob_array = bytearray(blob)
+                        blob_array[start:end] = new_bytes + b'\x00' * (len(blob[start:end]) - len(new_bytes))
+
+                        # Update accessor and buffer view
+                        accessor.componentType = 5123  # UNSIGNED_SHORT
+                        bv.byteLength = len(new_bytes)
+
+                        glb.set_binary_blob(bytes(blob_array))
+                        logger.info(f"SF3D: Converted indices from 32-bit to 16-bit (max={max_index})")
+                    else:
+                        logger.warning(f"SF3D: Cannot convert indices, max={max_index} > 65535")
+
+    glb.save(output_path)
